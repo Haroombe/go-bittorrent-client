@@ -1,16 +1,17 @@
 package main
 
 import (
-    "bytes"
-    "fmt"
-    "io"
-    "io/ioutil"
-    "log"
-    "net/http"
-    "os"
-    "path"
+	"bytes"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
+	"path"
+	"strings"
 
-    "github.com/jackpal/bencode-go"
+	"github.com/jackpal/bencode-go"
 )
 
 type bencodeInfo struct {
@@ -37,17 +38,18 @@ func Open(r io.Reader) (*bencodeTorrent, error) {
 
 func main() {
     // Check if the correct number of arguments is provided
-    if len(os.Args) != 3 {
-        fmt.Println("Usage: 'go run torrent_parser.go file <path/to/torrentfile.torrent>' or 'go run torrent_parser.go link <link_to_torrent.com>'")
+    if len(os.Args) != 2 {
+        fmt.Println("Usage: 'go run torrent_parser.go <path/to/torrentfile.torrent>' or 'go run torrent_parser.go <link_to_torrent.com>'")
         return
     }
-    torrentPath := os.Args[2]
-    argType := os.Args[1]
+    torrentPath := os.Args[1]
 
     var reader io.Reader
     var filePath string
+    split_torrent_path := strings.Split(torrentPath, ".")
+    split_torrent_path_url := strings.Split(torrentPath, ":")
 
-    if argType == "link" {
+    if strings.Contains(split_torrent_path_url[0],"http") {
         fmt.Printf("Fetching torrent file from '%s'\n", torrentPath)
         resp, err := http.Get(torrentPath)
         if err != nil {
@@ -58,6 +60,11 @@ func main() {
         body, err := ioutil.ReadAll(resp.Body)
         if err != nil {
             log.Fatalln(err)
+        }
+        // fmt.Println(string(body))
+
+        if strings.Contains(string(body), "not found") {
+            log.Fatalf(fmt.Sprintf("Failed to fetch torrent from '%s', exiting...", torrentPath))
         }
 
         // Create the ./torrents/ directory if it does not exist
@@ -76,7 +83,7 @@ func main() {
         }
 
         reader = bytes.NewReader(body)
-    } else if argType == "file" {
+    } else if split_torrent_path[len(split_torrent_path)-1] == "torrent" {
         fmt.Printf("Opening torrent file at '%s'\n", torrentPath)
         filePath = torrentPath
 
@@ -88,7 +95,7 @@ func main() {
         defer file.Close()
         reader = file
     } else {
-        fmt.Println("Invalid argument type. Use 'file' or 'link'.")
+        fmt.Printf("Invalid Argument '%s'. Pass in path to torrent file or magnet link", torrentPath)
         return
     }
 
@@ -113,7 +120,7 @@ func main() {
     }
 
     // Notify the user where the file is saved
-    if argType == "link" {
+    if strings.Contains(split_torrent_path_url[0],"http") {
         fmt.Printf("Torrent file saved locally as '%s'\n", filePath)
     }
 }
