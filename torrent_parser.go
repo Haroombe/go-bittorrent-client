@@ -15,112 +15,116 @@ import (
 )
 
 type bencodeInfo struct {
-    Pieces      string `bencode:"pieces"`
-    PieceLength int    `bencode:"piece length"`
-    Length      int    `bencode:"length"`
-    Name        string `bencode:"name"`
+	Pieces      string `bencode:"pieces"`
+	PieceLength int    `bencode:"piece length"`
+	Length      int    `bencode:"length"`
+	Name        string `bencode:"name"`
 }
 
 type bencodeTorrent struct {
-    Announce string      `bencode:"announce"`
-    Info     bencodeInfo `bencode:"info"`
+	Announce string      `bencode:"announce"`
+	Info     bencodeInfo `bencode:"info"`
 }
 
 // Open parses a torrent file
 func Open(r io.Reader) (*bencodeTorrent, error) {
-    bto := bencodeTorrent{}
-    err := bencode.Unmarshal(r, &bto)
-    if err != nil {
-        return nil, err
-    }
-    return &bto, nil
+	var bto bencodeTorrent
+	err := bencode.Unmarshal(r, &bto)
+	if err != nil {
+		return nil, err
+	}
+	return &bto, nil
+}
+
+func fetchTorrent(torrentPath string) ([]byte, string, error) {
+	fmt.Printf("Fetching torrent file from '%s'\n", torrentPath)
+	resp, err := http.Get(torrentPath)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if strings.Contains(string(body), "not found") {
+		return nil, "", fmt.Errorf("failed to fetch torrent from '%s'", torrentPath)
+	}
+
+	if _, err := os.Stat("./torrents/"); os.IsNotExist(err) {
+		os.Mkdir("./torrents/", os.ModePerm)
+	}
+
+	fileName := path.Base(torrentPath)
+	filePath := "./torrents/" + fileName
+
+	err = ioutil.WriteFile(filePath, body, 0644)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return body, filePath, nil
+}
+
+func openLocalTorrent(torrentPath string) (io.Reader, error) {
+	fmt.Printf("Opening torrent file at '%s'\n", torrentPath)
+	file, err := os.Open(torrentPath)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
 }
 
 func main() {
-    // Check if the correct number of arguments is provided
-    if len(os.Args) != 2 {
-        fmt.Println("Usage: 'go run torrent_parser.go <path/to/torrentfile.torrent>' or 'go run torrent_parser.go <link_to_torrent.com>'")
-        return
-    }
-    torrentPath := os.Args[1]
+	if len(os.Args) != 2 {
+		fmt.Println("Usage: 'go run torrent_parser.go <path/to/torrentfile.torrent>' or 'go run torrent_parser.go <link_to_torrent.com>'")
+		return
+	}
+	torrentPath := os.Args[1]
 
-    var reader io.Reader
-    var filePath string
-    split_torrent_path := strings.Split(torrentPath, ".")
-    split_torrent_path_url := strings.Split(torrentPath, ":")
+	var reader io.Reader
+	var filePath string
 
-    if strings.Contains(split_torrent_path_url[0],"http") {
-        fmt.Printf("Fetching torrent file from '%s'\n", torrentPath)
-        resp, err := http.Get(torrentPath)
-        if err != nil {
-            log.Fatalln(err)
-        }
-        defer resp.Body.Close() // Ensure the body is closed when done
+	if strings.HasPrefix(torrentPath, "http") {
+		body, path, err := fetchTorrent(torrentPath)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		filePath = path
+		reader = bytes.NewReader(body)
+	} else if strings.HasSuffix(torrentPath, ".torrent") {
+		file, err := openLocalTorrent(torrentPath)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		filePath = torrentPath
+		reader = file
+	} else {
+		fmt.Printf("Invalid Argument '%s'. Pass in path to torrent file or magnet link\n", torrentPath)
+		return
+	}
 
-        body, err := ioutil.ReadAll(resp.Body)
-        if err != nil {
-            log.Fatalln(err)
-        }
-        // fmt.Println(string(body))
+	torrent, err := Open(reader)
+	if err != nil {
+		fmt.Println("Error parsing torrent file:", err)
+		return
+	}
 
-        if strings.Contains(string(body), "not found") {
-            log.Fatalf(fmt.Sprintf("Failed to fetch torrent from '%s', exiting...", torrentPath))
-        }
+	fmt.Printf("Announce: %s\n", torrent.Announce)
+	fmt.Printf("Name: %s\n", torrent.Info.Name)
+	fmt.Printf("Piece Length: %d\n", torrent.Info.PieceLength)
+	fmt.Printf("Length: %d\n", torrent.Info.Length)
 
-        // Create the ./torrents/ directory if it does not exist
-        if _, err := os.Stat("./torrents/"); os.IsNotExist(err) {
-            os.Mkdir("./torrents/", os.ModePerm)
-        }
+	var viewPieces string
+	fmt.Printf("View pieces of torrent '%s'? (y/n): ", torrent.Info.Name)
+	fmt.Scanln(&viewPieces)
+	if viewPieces == "y" {
+		fmt.Printf("Pieces: %s\n", torrent.Info.Pieces)
+	}
 
-        // Extract the file name from the URL
-        fileName := path.Base(torrentPath)
-        filePath = "./torrents/" + fileName
-
-        // Save the file locally
-        err = ioutil.WriteFile(filePath, body, 0644)
-        if err != nil {
-            log.Fatalln(err)
-        }
-
-        reader = bytes.NewReader(body)
-    } else if split_torrent_path[len(split_torrent_path)-1] == "torrent" {
-        fmt.Printf("Opening torrent file at '%s'\n", torrentPath)
-        filePath = torrentPath
-
-        file, err := os.Open(torrentPath)
-        if err != nil {
-            fmt.Println("Error opening file:", err)
-            return
-        }
-        defer file.Close()
-        reader = file
-    } else {
-        fmt.Printf("Invalid Argument '%s'. Pass in path to torrent file or magnet link", torrentPath)
-        return
-    }
-
-    // Parse the torrent file
-    torrent, err := Open(reader)
-    if err != nil {
-        fmt.Println("Error parsing torrent file:", err)
-        return
-    }
-
-    // Print out the parsed information
-    fmt.Printf("Announce: %s\n", torrent.Announce)
-    fmt.Printf("Name: %s\n", torrent.Info.Name)
-    fmt.Printf("Piece Length: %d\n", torrent.Info.PieceLength)
-    fmt.Printf("Length: %d\n", torrent.Info.Length)
-
-    var viewPieces string
-    fmt.Printf("View pieces of torrent '%s'? (y/n): ", torrent.Info.Name)
-    fmt.Scanln(&viewPieces)
-    if viewPieces == "y" {
-        fmt.Printf("Pieces: %s\n", torrent.Info.Pieces)
-    }
-
-    // Notify the user where the file is saved
-    if strings.Contains(split_torrent_path_url[0],"http") {
-        fmt.Printf("Torrent file saved locally as '%s'\n", filePath)
-    }
+	if strings.HasPrefix(torrentPath, "http") {
+		fmt.Printf("Torrent file saved locally as '%s'\n", filePath)
+	}
 }
