@@ -25,4 +25,5 @@ But how does the download work? When we are downloading a file via torrent, we d
 
 PS: I think it is bad etiquette to only download and then just leave, ie **leeching**.
 
-## 06-19-2024
+## 06-22-2024
+Forgot to add this, but torrent files are just freely available. You can make your own (which I will add as a feature later), or download them from online. I had a bit of confusion between urls that actually lead directly to torrent files hosted on the internet, and [magnet links](https://lifehacker.com/what-are-magnet-links-and-how-do-i-use-them-to-downloa-5875899), which removes you having to download the actual torrent file because it contains the essential information in the link itself.
