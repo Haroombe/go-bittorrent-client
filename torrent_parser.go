@@ -102,7 +102,7 @@ func main() {
 		filePath = torrentPath
 		reader = file
 	} else {
-		fmt.Printf("Invalid Argument '%s'. Pass in path to torrent file or magnet link\n", torrentPath)
+		fmt.Printf("Invalid Argument '%s'. Pass in path to torrent file or link\n", torrentPath)
 		return
 	}
 

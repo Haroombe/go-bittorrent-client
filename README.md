@@ -27,3 +27,6 @@ PS: I think it is bad etiquette to only download and then just leave, ie **leech
 
 ## 06-22-2024
 Forgot to add this, but torrent files are just freely available. You can make your own (which I will add as a feature later), or download them from online. I had a bit of confusion between urls that actually lead directly to torrent files hosted on the internet, and [magnet links](https://lifehacker.com/what-are-magnet-links-and-how-do-i-use-them-to-downloa-5875899), which removes you having to download the actual torrent file because it contains the essential information in the link itself.
+
+Lets get back to actual development, because currently I have just been yapping. So currently I have implemented the torrent parser, you can pass in a link to a torrent file or an actual torrent file, and it parses some info. Now I want to actually start downloading the file (legal file ofc), so the next step is to connect to peers. But to connect to peers we need to know where they are. We discussed a few methods for peer discovery above, but for my MVP (minimum viable product) I will implement centralized peer discovery, i.e. the tracker. 
+
