@@ -30,3 +30,6 @@ Forgot to add this, but torrent files are just freely available. You can make yo
 
 Lets get back to actual development, because currently I have just been yapping. So currently I have implemented the torrent parser, you can pass in a link to a torrent file or an actual torrent file, and it parses some info. Now I want to actually start downloading the file (legal file ofc), so the next step is to connect to peers. But to connect to peers we need to know where they are. We discussed a few methods for peer discovery above, but for my MVP (minimum viable product) I will implement centralized peer discovery, i.e. the tracker. 
 
+## 07-03-2024
+Haha took a bit of a break. But I'm back. I implemented a few things. The end goal right now is peer discovery via the tracker, but we need to modify the data a bit. Also needed to calculate the infohash, which was done using the crypto/sha1 package. Also I split the pieces into 20 byte sized pieces from string format.
+
