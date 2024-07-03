@@ -10,7 +10,7 @@ import (
 	"os"
 	"path"
 	"strings"
-
+	"crypto/sha1"
 	"github.com/jackpal/bencode-go"
 )
 
@@ -25,6 +25,26 @@ type bencodeTorrent struct {
 	Announce string      `bencode:"announce"`
 	Info     bencodeInfo `bencode:"info"`
 }
+
+
+func calculateInfoHash(infoDict bencodeInfo) (string,error) {
+	fmt.Printf("Calculating info hash of 'info' dict of torrent\n")
+	var buf bytes.Buffer
+    err := bencode.Marshal(&buf, infoDict)
+    if err != nil {
+        return "", fmt.Errorf("failed to marshal info: %v", err)
+    }
+
+    // Calculate SHA1 hash
+    hash := sha1.Sum(buf.Bytes())
+
+    // Convert hash to hexadecimal string
+    return fmt.Sprintf("%x", hash), nil
+}
+
+
+
+
 
 // Open parses a torrent file
 func Open(r io.Reader) (*bencodeTorrent, error) {
@@ -127,4 +147,14 @@ func main() {
 	if strings.HasPrefix(torrentPath, "http") {
 		fmt.Printf("Torrent file saved locally as '%s'\n", filePath)
 	}
+
+	fmt.Print("Preparing for tracker announcement\n")
+    infoHash, err := calculateInfoHash(torrent.Info)
+    if err != nil {
+        fmt.Println("Error calculating info hash:", err)
+        return
+    }
+
+    fmt.Println("Info Hash:", infoHash)
+	
 }
